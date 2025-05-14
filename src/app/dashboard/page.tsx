@@ -1,14 +1,8 @@
 // src/app/dashboard/page.tsx
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  CognitoUserPool, 
-  CognitoUserSession,
-  CognitoUserAttribute,
-  IAuthenticationCallback
-} from 'amazon-cognito-identity-js';
 import { Loader2, User, LogOut } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -20,75 +14,30 @@ import {
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-// AWS Cognito setup
-const poolData = {
-  UserPoolId: "us-east-1_iVomSPj8O", 
-  ClientId: "38f5ummg4pu7le5rsdegepsmd5",
-};
-
-const userPool = new CognitoUserPool(poolData);
-
 export default function Dashboard() {
-  const [user, setUser] = useState<Record<string, string> | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Check if user is authenticated
-    const currentUser = userPool.getCurrentUser();
-
-    if (!currentUser) {
-      // No user found, redirect to sign-in
-      router.push('/sign-in');
-      return;
-    }
-
-    // Get user session
-    currentUser.getSession(function(this: any, err: Error | null, session: CognitoUserSession) {
-      if (err) {
-        console.error('Error getting session:', err);
-        router.push('/sign-in');
-        return;
-      }
-
-      if (!session.isValid()) {
-        console.log('Session not valid');
-        router.push('/sign-in');
-        return;
-      }
-
-      // Get user attributes
-      currentUser.getUserAttributes(function(this: any, err: Error | null, attributes: CognitoUserAttribute[] | undefined) {
-        if (err) {
-          console.error('Error getting user attributes:', err);
-          setLoading(false);
-          return;
-        }
-
-        const userInfo: Record<string, string> = {};
-        if (attributes) {
-          attributes.forEach(attr => {
-            userInfo[attr.getName()] = attr.getValue();
-          });
-        }
-
-        setUser(userInfo);
-        setLoading(false);
-      });
-    });
-  }, [router]);
+  // Sample user data
+  const user = {
+    email: "user@example.com",
+    name: "John Doe",
+    given_name: "John",
+    family_name: "Doe"
+  };
 
   const handleSignOut = () => {
-    const currentUser = userPool.getCurrentUser();
-    if (currentUser) {
-      currentUser.signOut();
+    setLoading(true);
+    
+    // Simple timeout to simulate sign out process
+    setTimeout(() => {
       toast({
         title: "Signed out successfully",
         description: "You have been signed out of your account."
       });
       router.push('/sign-in');
-    }
+    }, 500);
   };
 
   if (loading) {
@@ -117,33 +66,27 @@ export default function Dashboard() {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {user ? (
-            <div className="space-y-4 border rounded-lg p-6 bg-card dark:bg-slate-900">
-              <h2 className="text-xl font-semibold mb-4">User Profile</h2>
-              <div className="space-y-3">
-                <div className="grid grid-cols-3 gap-2 py-2 border-b border-slate-200 dark:border-slate-800">
-                  <span className="text-sm font-medium">Email:</span>
-                  <span className="text-sm col-span-2">{user.email || 'Not available'}</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2 py-2 border-b border:slate-200 dark:border-slate-800">
-                  <span className="text-sm font-medium">Name:</span>
-                  <span className="text-sm col-span-2">{user['custom:display_name'] || user.name || 'Not available'}</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2 py-2 border-b border-slate-200 dark:border-slate-800">
-                  <span className="text-sm font-medium">Given Name:</span>
-                  <span className="text-sm col-span-2">{user.given_name || 'Not available'}</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2 py-2">
-                  <span className="text-sm font-medium">Family Name:</span>
-                  <span className="text-sm col-span-2">{user.family_name || 'Not available'}</span>
-                </div>
+          <div className="space-y-4 border rounded-lg p-6 bg-card dark:bg-slate-900">
+            <h2 className="text-xl font-semibold mb-4">User Profile</h2>
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2 py-2 border-b border-slate-200 dark:border-slate-800">
+                <span className="text-sm font-medium">Email:</span>
+                <span className="text-sm col-span-2">{user.email}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 py-2 border-b border-slate-200 dark:border-slate-800">
+                <span className="text-sm font-medium">Name:</span>
+                <span className="text-sm col-span-2">{user.name}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 py-2 border-b border-slate-200 dark:border-slate-800">
+                <span className="text-sm font-medium">Given Name:</span>
+                <span className="text-sm col-span-2">{user.given_name}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 py-2">
+                <span className="text-sm font-medium">Family Name:</span>
+                <span className="text-sm col-span-2">{user.family_name}</span>
               </div>
             </div>
-          ) : (
-            <div className="flex justify-center p-6 text-muted-foreground">
-              No user information available
-            </div>
-          )}
+          </div>
         </CardContent>
         
         <CardFooter className="flex flex-col space-y-4 pt-4">
