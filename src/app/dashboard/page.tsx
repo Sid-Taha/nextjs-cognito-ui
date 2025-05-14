@@ -24,7 +24,7 @@ const poolData = {
 const userPool = new CognitoUserPool(poolData);
 
 export default function Dashboard() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<Record<string, string> | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
@@ -40,6 +40,7 @@ export default function Dashboard() {
     }
 
     // Get user session
+    // @ts-ignore - Cognito callback types are handled internally
     currentUser.getSession((err, session) => {
       if (err) {
         console.error('Error getting session:', err);
@@ -54,6 +55,7 @@ export default function Dashboard() {
       }
 
       // Get user attributes
+      // @ts-ignore - Cognito callback types are handled internally
       currentUser.getUserAttributes((err, attributes) => {
         if (err) {
           console.error('Error getting user attributes:', err);
@@ -61,7 +63,7 @@ export default function Dashboard() {
           return;
         }
 
-        const userInfo = {};
+        const userInfo: Record<string, string> = {};
         if (attributes) {
           attributes.forEach(attr => {
             userInfo[attr.getName()] = attr.getValue();
@@ -75,8 +77,9 @@ export default function Dashboard() {
   }, [router]);
 
   const handleSignOut = () => {
-    if (userPool.getCurrentUser()) {
-      userPool.getCurrentUser().signOut();
+    const currentUser = userPool.getCurrentUser();
+    if (currentUser) {
+      currentUser.signOut();
       toast({
         title: "Signed out successfully",
         description: "You have been signed out of your account."
