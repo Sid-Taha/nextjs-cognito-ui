@@ -3,7 +3,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CognitoUserPool } from 'amazon-cognito-identity-js';
+import { 
+  CognitoUserPool, 
+  CognitoUserSession, 
+  CognitoUserAttribute 
+} from 'amazon-cognito-identity-js';
 import { Loader2, User, LogOut } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -40,8 +44,7 @@ export default function Dashboard() {
     }
 
     // Get user session
-    // @ts-ignore - Cognito callback types are handled internally
-    currentUser.getSession((err, session) => {
+    currentUser.getSession((err: Error | null, session: CognitoUserSession) => {
       if (err) {
         console.error('Error getting session:', err);
         router.push('/sign-in');
@@ -55,8 +58,7 @@ export default function Dashboard() {
       }
 
       // Get user attributes
-      // @ts-ignore - Cognito callback types are handled internally
-      currentUser.getUserAttributes((err, attributes) => {
+      currentUser.getUserAttributes((err: Error | null, attributes?: CognitoUserAttribute[]) => {
         if (err) {
           console.error('Error getting user attributes:', err);
           setLoading(false);
