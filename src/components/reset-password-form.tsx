@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Loader2, LockKeyhole } from "lucide-react"
 
@@ -19,7 +18,6 @@ export default function ResetPasswordForm() {
   const [newPassword, setNewPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
-  const router = useRouter()
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,10 +31,11 @@ export default function ResetPasswordForm() {
         title: "Password Reset Successful",
         description: "You can now sign in with your new password",
       })
-    } catch (err: any) {
+    } catch (err: Error | unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Something went wrong"
       toast({
         title: "Error",
-        description: err.message || "Something went wrong",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {

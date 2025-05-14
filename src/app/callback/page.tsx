@@ -1,67 +1,82 @@
 // src\app\callback\page.tsx
 "use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Callback() {
   const router = useRouter();
-  
+
+  const exchangeCodeForToken = async (code: string) => {
+    const params = new URLSearchParams();
+    params.append("grant_type", "authorization_code");
+    params.append("client_id", "38f5ummg4pu7le5rsdegepsmd5");
+    params.append("code", code);
+    params.append("redirect_uri", "http://localhost:3000/callback");
+
+    const response = await fetch(
+      "https://taha-ahmed-app-2.auth.us-east-1.amazoncognito.com/oauth2/token",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params.toString(),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to exchange code for tokens");
+    }
+
+    return response.json(); // returns { access_token, id_token, refresh_token }
+  };
+
   useEffect(() => {
-    // Add immediate logging to debug
-    console.log('Callback page loaded');
-    console.log('URL search params:', window.location.search);
-    
-    // Get the authorization code from URL
     const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    const state = urlParams.get('state');
-    const error = urlParams.get('error');
-    const errorDescription = urlParams.get('error_description');
-    
-    // Log all relevant parameters
-    console.log('Code present:', !!code);
-    console.log('State from URL:', state);
-    
-    // Check for explicit error parameters
+    const code = urlParams.get("code");
+    const state = urlParams.get("state");
+    const error = urlParams.get("error");
+    const errorDescription = urlParams.get("error_description");
+
     if (error) {
-      console.error('Authentication error:', error, errorDescription);
-      router.push(`/sign-in?error=${error}&description=${encodeURIComponent(errorDescription || '')}`);
+      router.push(
+        `/sign-in?error=${error}&description=${encodeURIComponent(
+          errorDescription || ""
+        )}`
+      );
       return;
     }
-    
-    // Verify state to prevent CSRF
-    const savedState = sessionStorage.getItem('oauth_state');
-    console.log('Saved state from sessionStorage:', savedState);
-    
-    if (!savedState) {
-      console.error('No state found in sessionStorage');
-      router.push('/sign-in?error=missing_state');
+
+    const savedState = sessionStorage.getItem("oauth_state");
+    if (!savedState || state !== savedState) {
+      router.push("/sign-in?error=invalid_state");
       return;
     }
-    
-    if (state !== savedState) {
-      console.error('State mismatch - possible CSRF attack');
-      router.push('/sign-in?error=invalid_state');
-      return;
-    }
-    
+
+    sessionStorage.removeItem("oauth_state");
+
     if (code) {
-      // Store the code or exchange it for tokens here
-      console.log('Authentication successful, received authorization code');
-      
-      // After successful authentication, redirect to dashboard
-      router.push('/dashboard');
+      // ⬇️ Use your token exchange function here
+      exchangeCodeForToken(code)
+        .then((tokens) => {
+          console.log("Tokens received:", tokens);
+
+          // Optionally store them
+          localStorage.setItem("access_token", tokens.access_token);
+          localStorage.setItem("id_token", tokens.id_token);
+
+          router.push("/dashboard");
+        })
+        .catch((err) => {
+          console.error("Token exchange failed", err);
+          router.push("/sign-in?error=token_exchange_failed");
+        });
     } else {
-      // Handle error
-      console.error('No authorization code received');
-      router.push('/sign-in?error=no_code');
+      router.push("/sign-in?error=no_code");
     }
-    
-    // Clear state
-    sessionStorage.removeItem('oauth_state');
   }, [router]);
-  
+
   return (
     <div className="flex items-center justify-center min-h-screen">
       <div className="text-center">

@@ -5,6 +5,7 @@ import type React from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Eye, EyeOff, Loader2, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -239,9 +240,11 @@ export default function SignInForm() {
               className="w-full h-11 flex items-center justify-center gap-2"
               onClick={handleGoogleSignIn}
             >
-              <img
+              <Image
                 src="https://www.svgrepo.com/show/475656/google-color.svg"
                 alt="Google"
+                width={20}
+                height={20}
                 className="h-5 w-5"
               />
               Continue with Google
@@ -270,7 +273,7 @@ export default function SignInForm() {
           </div>
 
           <div className="text-center text-sm">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link
               href="/sign-up"
               className="font-medium text-primary hover:underline underline-offset-4 transition-colors"
