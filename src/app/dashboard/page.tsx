@@ -5,8 +5,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   CognitoUserPool, 
-  CognitoUserSession, 
-  CognitoUserAttribute 
+  CognitoUserSession,
+  CognitoUserAttribute,
+  IAuthenticationCallback
 } from 'amazon-cognito-identity-js';
 import { Loader2, User, LogOut } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,7 @@ export default function Dashboard() {
     }
 
     // Get user session
-    currentUser.getSession((err: Error | null, session: CognitoUserSession) => {
+    currentUser.getSession(function(this: any, err: Error | null, session: CognitoUserSession) {
       if (err) {
         console.error('Error getting session:', err);
         router.push('/sign-in');
@@ -58,7 +59,7 @@ export default function Dashboard() {
       }
 
       // Get user attributes
-      currentUser.getUserAttributes((err: Error | null, attributes?: CognitoUserAttribute[]) => {
+      currentUser.getUserAttributes(function(this: any, err: Error | null, attributes: CognitoUserAttribute[] | undefined) {
         if (err) {
           console.error('Error getting user attributes:', err);
           setLoading(false);
