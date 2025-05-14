@@ -12,7 +12,7 @@ export default function Callback() {
     params.append("grant_type", "authorization_code");
     params.append("client_id", "38f5ummg4pu7le5rsdegepsmd5");
     params.append("code", code);
-    params.append("redirect_uri", "nextjs-cognito-ui-aiyo.vercel.app/callback");
+    params.append("redirect_uri", "https://nextjs-cognito-ui-aiyo.vercel.app/callback");
 
     const response = await fetch(
       "https://taha-ahmed-app-2.auth.us-east-1.amazoncognito.com/oauth2/token",
