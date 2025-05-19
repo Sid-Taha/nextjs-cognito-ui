@@ -36,7 +36,7 @@ const userPool = new CognitoUserPool(poolData);
 const cognitoConfig = {
   domain: "taha-ahmed-app-2.auth.us-east-1.amazoncognito.com",
   clientId: "38f5ummg4pu7le5rsdegepsmd5",
-  redirectUri: "https://nextjs-cognito-ui-aiyo.vercel.app/callback",
+  redirectUri:  process.env.NODE_ENV === "development" ? "http://localhost:3000/callback" : "https://nextjs-cognito-ui-aiyo.vercel.app/callback",
 };
 
 export default function SignInForm() {

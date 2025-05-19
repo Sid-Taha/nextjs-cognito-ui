@@ -1,0 +1,150 @@
+name: Deploy Next.js with AWS Cognito to EC2
+
+# Trigger the workflow on these events
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run tests
+      run: npm test -- --passWithNoTests
+      
+    - name: Build Next.js application
+      run: npm run build
+      env:
+        NEXT_PUBLIC_COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
+        NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
+        NEXT_PUBLIC_COGNITO_REGION: ${{ secrets.COGNITO_REGION }}
+        
+    - name: Create deployment package
+      run: |
+        mkdir -p deployment
+        cp -r .next deployment/
+        cp -r public deployment/ || echo "No public folder found"
+        cp package*.json deployment/
+        cp next.config.ts deployment/ || echo "No next.config.ts found"
+        cp next.config.js deployment/ || echo "No next.config.js found"
+        cp tsconfig.json deployment/ || echo "No tsconfig.json found"
+        
+        # Create deployment script
+        cat > deployment/deploy.sh << 'EOF'
+        #!/bin/bash
+        set -e
+        
+        echo "Starting deployment..."
+        
+        # Download from S3
+        cd /tmp
+        aws s3 cp s3://nextjs-deployment-artifacts-072248435793-us-east-1/latest-deployment.tar.gz .
+        
+        # Extract
+        mkdir -p nextjs-temp
+        tar -xzf latest-deployment.tar.gz -C nextjs-temp
+        
+        # Stop existing processes
+        sudo -u deploy pm2 stop nextjs-app || echo "No process to stop"
+        sudo -u deploy pm2 delete nextjs-app || echo "No process to delete"
+        
+        # Backup and move new deployment
+        if [ -d /home/deploy/nextjs-app ]; then
+          sudo mv /home/deploy/nextjs-app /home/deploy/nextjs-app-backup-$(date +%Y%m%d-%H%M%S)
+        fi
+        
+        sudo mv nextjs-temp/deployment /home/deploy/nextjs-app
+        sudo chown -R deploy:deploy /home/deploy/nextjs-app
+        
+        # Start application
+        cd /home/deploy/nextjs-app
+        sudo -u deploy npm install --production
+        sudo -u deploy pm2 start npm --name "nextjs-app" -- start
+        sudo -u deploy pm2 save
+        
+        # Clean up
+        rm -rf /tmp/nextjs-temp /tmp/latest-deployment.tar.gz
+        
+        echo "Deployment completed successfully!"
+        EOF
+        
+        chmod +x deployment/deploy.sh
+        tar -czf deployment.tar.gz deployment/
+        
+    - name: Upload deployment artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: deployment-package
+        path: deployment.tar.gz
+        retention-days: 1
+
+  deploy-to-s3:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Download deployment artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: deployment-package
+        
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+        
+    - name: Upload to S3
+      run: |
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        aws s3 cp deployment.tar.gz s3://${{ secrets.S3_BUCKET_NAME }}/deployments/deployment-$TIMESTAMP.tar.gz
+        aws s3 cp deployment.tar.gz s3://${{ secrets.S3_BUCKET_NAME }}/latest-deployment.tar.gz
+        echo "✅ Deployment package uploaded to S3"
+        echo "📦 Versioned as: deployment-$TIMESTAMP.tar.gz"
+        echo "🔗 Latest available at: latest-deployment.tar.gz"
+
+  deployment-instructions:
+    needs: deploy-to-s3
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Provide deployment instructions
+      run: |
+        echo "🚀 Deployment package is ready!"
+        echo ""
+        echo "To deploy to EC2, run these commands:"
+        echo ""
+        echo "1. Connect to EC2:"
+        echo "   aws ssm start-session --target i-0f9aec2dcaa402c86"
+        echo "   # OR"
+        echo "   ssh -i nextjs-deployment-key.pem ec2-user@44.193.201.2"
+        echo ""
+        echo "2. Run deployment:"
+        echo "   sudo bash -c 'cd /tmp && aws s3 cp s3://nextjs-deployment-artifacts-072248435793-us-east-1/latest-deployment.tar.gz . && tar -xzf latest-deployment.tar.gz && bash deployment/deploy.sh'"
+        echo ""
+        echo "3. Your app will be available at:"
+        echo "   http://44.193.201.2"
+        echo ""
+        echo "For manual deployment, download the package and run deploy.sh"
