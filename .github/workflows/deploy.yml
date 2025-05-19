@@ -1,0 +1,62 @@
+name: Deploy Next.js to EC2
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        
+    - run: npm ci
+    
+    - run: npm run build
+      env:
+        NEXT_PUBLIC_COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
+        NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
+        NEXT_PUBLIC_COGNITO_REGION: ${{ secrets.COGNITO_REGION }}
+        
+    - name: Create deployment package
+      run: |
+        mkdir -p deployment
+        cp -r .next deployment/
+        cp -r public deployment/ || echo "No public folder"
+        cp package*.json deployment/
+        cp *.config.* deployment/ || echo "No config files"
+        tar -czf deployment.tar.gz deployment/
+        
+    - uses: actions/upload-artifact@v4
+      with:
+        name: deployment-package
+        path: deployment.tar.gz
+
+  deploy-to-s3:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: deployment-package
+        
+    - uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+        
+    - run: |
+        aws s3 cp deployment.tar.gz s3://${{ secrets.S3_BUCKET_NAME }}/latest-deployment.tar.gz
+        echo "✅ Deployed to S3!"
