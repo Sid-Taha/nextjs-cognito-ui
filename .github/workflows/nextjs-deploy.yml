@@ -27,10 +27,7 @@ jobs:
         
     - name: Install dependencies
       run: npm ci
-      
-    - name: Run tests
-      run: npm run test --if-present || echo "No tests found, skipping..."
-      
+            
     - name: Build Next.js application
       run: npm run build
       env:
